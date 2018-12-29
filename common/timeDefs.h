@@ -47,7 +47,11 @@ namespace chronos
 
 	inline static void systemtimeofday(struct timeval *tv)
 	{
-		gettimeofday(tv, NULL);
+		// gettimeofday(tv, NULL);
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		tv->tv_sec = now.tv_sec;
+		tv->tv_usec = now.tv_nsec / 1000;
 		//timeofday<std::chrono::system_clock>(tv);
 	}
 
