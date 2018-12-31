@@ -52,7 +52,7 @@ void TimeProvider::setDiffToServer(double ms)
 
 	diffBuffer_.add(ms*1000);
 	diffToServer_ = diffBuffer_.median(3);
-//	LOG(INFO) << "setDiffToServer: " << ms << ", diff: " << diffToServer_ / 1000.f << "\n";
+	LOG(INFO) << "setDiffToServer: " << ms << ", diff: " << diffToServer_ / 1000.f << "\n";
 }
 
 /*
