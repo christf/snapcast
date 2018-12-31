@@ -217,7 +217,7 @@ void AlsaPlayer::worker()
 
 //		snd_pcm_avail_delay(handle_, &framesAvail, &framesDelay);
 		snd_pcm_delay(handle_, &framesDelay);
-		chronos::usec delay((chronos::usec::rep) (1000 * (double) framesDelay / stream_->getFormat().msRate()));
+		chronos::usec delay((chronos::usec::rep) (1000 * (double) framesDelay / stream_->getFormat().msRate() * 1.1));
 //		LOG(INFO) << "delay: " << framesDelay << ", delay[ms]: " << delay.count() / 1000 << "\n";
 
 		if (stream_->getPlayerChunk(buff_, delay, frames_))
@@ -243,7 +243,7 @@ void AlsaPlayer::worker()
 				LOG(DEBUG) << "Waiting for chunk\n";
 				if ((handle_ != NULL) && (chronos::getTickCount() - lastChunkTick > timeout_))
 				{
-					LOG(NOTICE) << "No chunk received for 5000ms. Closing ALSA.\n";
+					LOG(NOTICE) << "No chunk received for " << timeout_ << "ms. Closing ALSA.\n";
 					uninitAlsa();
 					stream_->clearChunks();
 				}
