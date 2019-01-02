@@ -73,7 +73,6 @@ void PipeStream::worker()
 			close(fd_);
 		fd_ = open(uri_.path.c_str(), O_RDONLY | O_NONBLOCK);
 		chronos::systemtimeofday(&tvChunk);
-		tvEncodedChunk_ = tvChunk;
 		try
 		{
 			if (fd_ == -1)
@@ -83,6 +82,7 @@ void PipeStream::worker()
 			{
 				chunk->timestamp.sec = tvChunk.tv_sec;
 				chunk->timestamp.usec = tvChunk.tv_usec;
+				tvEncodedChunk_ = tvChunk;
 				int toRead = chunk->payloadSize;
 				int len = 0;
 				bool data_in_this_cycle = false;
@@ -104,25 +104,40 @@ void PipeStream::worker()
 					}
 					else if (select_ret)
 					{
-						int count = read(fd_, chunk->payload + len, toRead - len);
-						if (count == 0)
-						{
-							LOG(INFO) << "EOF on input buffer" << endl;
-							setState(kIdle);
-							throw SnapException("end of file");
-						}
-						else
-						{
-							len += count;
-							data_in_this_cycle = true;
+						struct timeval now;
+						chronos::systemtimeofday(&now);
+						struct timeval bufferfilled = tvChunk;
+						bufferfilled.tv_sec = tvChunk.tv_sec - now.tv_sec;
+						bufferfilled.tv_usec = tvChunk.tv_usec - now.tv_usec;
 
-							if (getState() != kPlaying)
+						bool buffer_full =  (bufferfilled.tv_sec * 1000 + bufferfilled.tv_usec/1000) > bufferMs_;
+
+						if ( ! buffer_full)
+						{
+							int count = read(fd_, chunk->payload + len, toRead - len);
+							if (count == 0)
 							{
-								setState(kPlaying);
-								chronos::systemtimeofday(&tvChunk);
-								tvEncodedChunk_ = tvChunk;
-								pcmListener_->onResync(this, pcmReadMs_);
+								LOG(INFO) << "EOF on input buffer" << endl;
+								setState(kIdle);
+								throw SnapException("end of file");
 							}
+							else
+							{
+								len += count;
+								data_in_this_cycle = true;
+
+								if (getState() != kPlaying)
+								{
+									setState(kPlaying);
+									chronos::systemtimeofday(&tvChunk);
+									tvEncodedChunk_ = tvChunk;
+									pcmListener_->onResync(this, pcmReadMs_);
+								}
+							}
+						}
+						else {
+							LOG(DEBUG) << "Input buffer is full. We know there is data, we can afford to read it later, sleeping for pcmReadMS(" << pcmReadMs_ << ")"  << endl;
+							sleep(pcmReadMs_);
 						}
 					}
 					else
